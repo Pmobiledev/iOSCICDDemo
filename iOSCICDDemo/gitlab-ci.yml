@@ -1,0 +1,39 @@
+stages:
+- Build
+- Test
+- Archive And Release
+
+#before_script:
+#- ls
+#- pod install
+
+Compile & Build:
+    stage: Build
+    script:
+    - pod install
+    - xcodebuild clean -workspace iOSCICDDemo.xcworkspace -scheme iOSCICDDemo | xcpretty
+    - xcodebuild build -workspace iOSCICDDemo.xcworkspace -scheme iOSCICDDemo | xcpretty
+    tags:
+    - cicd_demo
+
+Automation Tests:
+    stage: Test
+    script:
+    - xcodebuild test -workspace iOSCICDDemo.xcworkspace -scheme iOSCICDDemoUITests -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 7,OS=12.1' | xcpretty -s
+    tags:
+    - cicd_demo
+
+Deploy And Distribute:
+   stage: Archive And Release
+   script:
+   # Clean Archive
+   - xcodebuild clean -workspace iOSCICDDemo.xcworkspace -configuration Debug -scheme iOSCICDDemo
+   # Prepare an Archive
+   - xcodebuild archive -workspace iOSCICDDemo.xcworkspace -configuration Debug -scheme  iOSCICDDemo -archivePath $PWD/builds/iOSCICDDemo.xcarchive
+   # Export archive
+   - xcodebuild -exportArchive -archivePath $PWD/builds/iOSCICDDemo.xcarchive -exportPath $PWD/builds/iOSCICDDemo -exportOptionsPlist exportOptions.plist
+   # Upload Archive to TestFairy
+   - curl -A "GitLab CI" -F api_key="22bde6113c763ca552784508dc1966da1a0e17c6" -F comment="GitLab Pipeline build ${CI_COMMIT_SHA}" -F file=@$PWD/builds/iOSCICDDemo/iOSCICDDemo.ipa https://upload.testfairy.com/api/upload/
+   tags:
+   - cicd_demo
+
